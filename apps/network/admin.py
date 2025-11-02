@@ -1,4 +1,5 @@
 
+import logging
 from django.contrib import admin
 from django.db.models import QuerySet
 from django.http import HttpRequest
@@ -6,6 +7,9 @@ from django.urls import reverse
 from django.utils.html import format_html
 
 from .models import NetworkNode, Product, SupplierLink
+
+# Получаем логгер с именем 'business' из настроек settings.py
+business_logger = logging.getLogger('business')
 
 
 @admin.register(Product)
@@ -22,14 +26,23 @@ class SupplierLinkAdmin(admin.ModelAdmin):
     """
     list_display = ('supplier', 'client', 'debt')
     search_fields = ('supplier__name', 'client__name')
-    # Запрещаем прямое редактирование долга в админ-панели.
-    # Причина: долг должен управляться бизнес-логикой (например, через API), а не вручную.
     readonly_fields = ('debt',)
     actions = ['clear_debt']
 
     @admin.action(description='Очистить задолженность у выбранных связей')
     def clear_debt(self, request: HttpRequest, queryset: QuerySet[SupplierLink]):
-        """Действие для обнуления задолженности."""
+        """Действие для обнуления задолженности с логированием."""
+        
+        # --- Логирование действия --- 
+        admin_user = request.user.username
+        # Итерируемся по queryset ПЕРЕД обновлением, чтобы залогировать старые значения
+        for link in queryset:
+            business_logger.info(
+                f"Администратор '{admin_user}' очистил задолженность для узла '{link.client.name}' "
+                f"(поставщик: {link.supplier.name}). Старая задолженность: {link.debt}."
+            )
+        # --- Конец логирования ---
+
         updated_count = queryset.update(debt=0)
         self.message_user(
             request,
@@ -53,20 +66,16 @@ class NetworkNodeAdmin(admin.ModelAdmin):
         """
         Формирует HTML для отображения поставщиков и долга в списке узлов.
         """
-        # Цель: предоставить администратору быстрый доступ к информации о поставщиках
-        # и задолженности прямо из списка, а также сделать навигацию по иерархии удобной.
         links = obj.client_links.select_related('supplier').all()
         if not links:
-            return "—"  # Используем em-dash для наглядного отображения отсутствия поставщиков.
+            return "—"
 
         supplier_html = []
         for link in links:
-            # Генерируем URL для перехода на страницу админки конкретного поставщика.
             supplier_url = reverse("admin:network_networknode_change", args=[link.supplier.id])
             supplier_html.append(
                 f'<a href="{supplier_url}">{link.supplier.name}</a> (Долг: {link.debt} ₽)'
             )
-        # format_html необходим для безопасного рендеринга HTML в админ-панели.
         return format_html("<br>".join(supplier_html))
 
     display_suppliers_and_debt.short_description = 'Поставщик и задолженность'
@@ -75,10 +84,4 @@ class NetworkNodeAdmin(admin.ModelAdmin):
         """
         Оптимизирует запросы к БД, чтобы избежать проблемы N+1.
         """
-        # Проблема N+1: без prefetch_related, для каждого из N узлов в списке
-        # будет сделан дополнительный запрос к БД для получения его поставщиков. 
-        # Это приводит к N+1 запросам.
-        # Решение: prefetch_related('client_links__supplier') загружает всех связанных 
-        # поставщиков одним дополнительным запросом, решая проблему производительности.
         return super().get_queryset(request).prefetch_related('client_links__supplier')
-

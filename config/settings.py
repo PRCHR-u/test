@@ -1,8 +1,10 @@
 
 import os
+from pathlib import Path # Используем pathlib для современного управления путями
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = Path(__file__).resolve().parent.parent
+
 
 # --- НАСТРОЙКИ БЕЗОПАСНОСТИ И ОКРУЖЕНИЯ ---
 
@@ -41,15 +43,17 @@ INSTALLED_APPS = [
     'corsheaders',  # Добавлено для CORS
 
     # Local apps
-    'apps.users',
+    'apps.users.apps.UsersConfig', # Изменено для поддержки сигналов
     'apps.network',
     'apps.api',
 ]
 
 MIDDLEWARE = [
+    # Наше новое middleware для логирования запросов должно быть первым
+    'config.middleware.RequestLoggingMiddleware', 
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # Добавлено для CORS
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -149,72 +153,100 @@ SPECTACULAR_SETTINGS = {
 }
 
 # --- LOGGING CONFIGURATION ---
-LOGS_DIR = os.path.join(BASE_DIR, 'logs')
-if not os.path.exists(LOGS_DIR):
-    os.makedirs(LOGS_DIR)
+
+LOG_DIR = BASE_DIR / 'logs'
+LOG_DIR.mkdir(exist_ok=True)
 
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {name} {module} {message}',
+            'format': '[{levelname}] {asctime} {module} {process:d} {thread:d} {message}',
             'style': '{',
         },
         'simple': {
-            'format': '{levelname} {name} {message}',
+            'format': '[{levelname}] {asctime} {message}',
             'style': '{',
         },
     },
+    
     'handlers': {
         'console': {
-            'level': 'DEBUG',
+            'level': 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
         },
-        'django_file': {
+        'file_general': {
             'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(LOGS_DIR, 'django.log'),
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOG_DIR / 'django.log',
+            'maxBytes': 1024 * 1024 * 5,  # 5 MB
+            'backupCount': 5,
             'formatter': 'verbose',
         },
-        'security_file': {
+        'file_security': {
             'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(LOGS_DIR, 'security.log'),
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOG_DIR / 'security.log',
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 5,
             'formatter': 'verbose',
         },
-        'business_file': {
+        'file_business': {
             'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(LOGS_DIR, 'business.log'),
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOG_DIR / 'business.log',
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        'file_errors': {
+            'level': 'ERROR',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOG_DIR / 'errors.log',
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 5,
             'formatter': 'verbose',
         },
     },
-    'root': {
-        'handlers': ['console', 'django_file'],
-        'level': 'INFO',
-    },
+    
     'loggers': {
         'django': {
-            'handlers': ['console', 'django_file'],
+            'handlers': ['console', 'file_general', 'file_errors'],
             'level': 'INFO',
             'propagate': False,
         },
-        'apps': {
-            'handlers': ['console', 'django_file'],
-            'level': 'DEBUG',
+        'django.request': {
+            'handlers': ['file_errors'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.security': {
+            'handlers': ['file_security'],
+            'level': 'INFO',
             'propagate': False,
         },
         'security': {
-            'handlers': ['console', 'security_file'],
+            'handlers': ['file_security', 'console'],
             'level': 'INFO',
             'propagate': False,
         },
         'business': {
-            'handlers': ['console', 'business_file'],
+            'handlers': ['file_business', 'console'],
             'level': 'INFO',
             'propagate': False,
         },
+        'apps': {
+            'handlers': ['console', 'file_general'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': False,
+        },
+    },
+    
+    'root': {
+        'handlers': ['console', 'file_general', 'file_errors'],
+        'level': 'INFO',
     },
 }
