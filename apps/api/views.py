@@ -19,7 +19,13 @@ class NetworkNodeViewSet(viewsets.ModelViewSet):
     Предоставляет CRUD операции через API.
     Доступно только для активных сотрудников.
     """
-    queryset = NetworkNode.objects.all()
+    # Оптимизированный queryset для решения проблемы N+1.
+    # prefetch_related загружает связанные данные одним/двумя доп. запросами,
+    # вместо одного запроса на каждый объект в списке.
+    queryset = NetworkNode.objects.all().prefetch_related(
+        'products', 
+        'client_links__supplier'
+    )
     serializer_class = NetworkNodeSerializer
     permission_classes = [IsActiveUser]
     pagination_class = CustomPagination

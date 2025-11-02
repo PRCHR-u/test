@@ -11,7 +11,6 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # Режим DEBUG читается из переменной окружения.
 # В .env.dev он True, в .env.prod он False.
-# Выражение `os.environ.get('DEBUG') == 'True'` корректно обработает строки 'True' и 'False'
 DEBUG = os.environ.get('DEBUG') == 'True'
 
 # ALLOWED_HOSTS настраивается в зависимости от окружения
@@ -36,9 +35,10 @@ INSTALLED_APPS = [
 
     # Third-party apps
     'rest_framework',
-    'rest_framework.authtoken', # Для аутентификации по токену
+    'rest_framework.authtoken',
     'django_filters',
-    'drf_spectacular', # Для генерации Swagger/OpenAPI
+    'drf_spectacular',
+    'corsheaders',  # Добавлено для CORS
 
     # Local apps
     'apps.users',
@@ -49,12 +49,31 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # Добавлено для CORS
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# --- НАСТРОЙКИ CORS ---
+# Источник: переменная окружения, содержащая домены через запятую.
+# Например: "http://localhost:3000,http://127.0.0.1:3000"
+CORS_ALLOWED_ORIGINS_STR = os.environ.get('CORS_ALLOWED_ORIGINS_STR', '')
+CORS_ALLOWED_ORIGINS = CORS_ALLOWED_ORIGINS_STR.split(',') if CORS_ALLOWED_ORIGINS_STR else []
+
+# Если в режиме разработки список пуст, разрешаем стандартные порты фронтенда
+if DEBUG and not CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173", # Стандартный порт Vite/React
+        "http://127.0.0.1:5173",
+    ]
+
+# --- КОНЕЦ НАСТРОЕК CORS ---
+
 
 ROOT_URLCONF = 'config.urls'
 
@@ -126,5 +145,76 @@ SPECTACULAR_SETTINGS = {
     'TITLE': 'Electronics Network API',
     'DESCRIPTION': 'API для управления сетью поставщиков электроники. Сгенерировано с помощью Gemini.',
     'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False, # Не показывать голую схему
+    'SERVE_INCLUDE_SCHEMA': False,
+}
+
+# --- LOGGING CONFIGURATION ---
+LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+if not os.path.exists(LOGS_DIR):
+    os.makedirs(LOGS_DIR)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {name} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {name} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'django_file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(LOGS_DIR, 'django.log'),
+            'formatter': 'verbose',
+        },
+        'security_file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(LOGS_DIR, 'security.log'),
+            'formatter': 'verbose',
+        },
+        'business_file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(LOGS_DIR, 'business.log'),
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'django_file'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'django_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'apps': {
+            'handlers': ['console', 'django_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'security': {
+            'handlers': ['console', 'security_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'business': {
+            'handlers': ['console', 'business_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
 }

@@ -1,3 +1,4 @@
+
 from rest_framework import serializers
 from apps.network.models import NetworkNode, SupplierLink, Product
 
@@ -14,14 +15,23 @@ class SupplierLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = SupplierLink
         fields = ('id', 'supplier', 'client', 'debt')
-        read_only_fields = ('debt', )  # Запрещаем обновление поля debt через API
+        # Запрещаем обновление поля debt через API.
+        # Причина: задолженность должна обновляться на основе действий (например, оплата),
+        # а не прямого редактирования, чтобы обеспечить целостность данных.
+        read_only_fields = ('debt',)
 
 
 class NetworkNodeSerializer(serializers.ModelSerializer):
     """Сериализатор для модели NetworkNode."""
-    # Включаем вложенный просмотр поставщиков с их задолженностями
+    # Включаем вложенный просмотр поставщиков с их задолженностями.
+    # `source='client_links'` указывает, что для этого поля нужно использовать 
+    # related_name `client_links` из модели NetworkNode.
     suppliers_links = SupplierLinkSerializer(source='client_links', many=True, read_only=True)
+    
+    # Отображаем полный список продуктов, связанных с узлом.
     products = ProductSerializer(many=True, read_only=True)
+    
+    # Динамическое поле, которое вычисляет иерархический уровень узла.
     level = serializers.SerializerMethodField()
 
     class Meta:
@@ -32,6 +42,7 @@ class NetworkNodeSerializer(serializers.ModelSerializer):
         )
     
     def get_level(self, obj):
-        """Вызывает метод get_level модели NetworkNode."""
+        """Вызывает метод get_level модели NetworkNode для вычисления уровня."""
+        # Этот метод позволяет нам добавить в API поле `level`, 
+        # которого нет в базе данных, но есть бизнес-логика для его расчета.
         return obj.get_level()
-

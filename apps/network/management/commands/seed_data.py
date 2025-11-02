@@ -4,61 +4,62 @@ from django.db import transaction
 from faker import Faker
 import random
 
-from apps.network.models.factory import Factory, FactoryContacts, FactoryProducts
-from apps.network.models.retail_network import RetailNetwork, RetailNetworkContacts, RetailNetworkProducts
-from apps.network.models.individual_entrepreneur import IndividualEntrepreneur, IndividualEntrepreneurContacts, IndividualEntrepreneurProducts
+from apps.network.models import NetworkNode, Product, SupplierLink
 
 class Command(BaseCommand):
     """
     Django-команда для заполнения базы данных тестовыми данными.
 
-    Генерирует иерархическую структуру поставщиков:
-    - 2 Завода (Factory)
-    - 5 Розничных сетей (RetailNetwork), случайным образом связанных с заводами.
-    - 10 Индивидуальных предпринимателей (IndividualEntrepreneur), случайным образом
-      связанных с розничными сетями.
+    Генерирует иерархическую структуру поставщиков с использованием единой модели NetworkNode:
+    - 3 Завода (уровень 0)
+    - 5 Розничных сетей (уровень 1), случайным образом связанных с заводами.
+    - 10 Индивидуальных предпринимателей (уровень 2), случайным образом связанных 
+      с розничными сетями.
 
-    Каждый элемент сети получает случайные контакты и список продуктов.
+    Каждый узел сети получает случайные контакты и набор продуктов.
+    Задолженность генерируется в связях между узлами.
     """
-    help = 'Заполняет базу данных тестовыми иерархическими данными сети.'
+    help = 'Заполняет базу данных тестовыми иерархическими данными для модели NetworkNode.'
 
     def handle(self, *args, **kwargs):
         # Используем транзакцию, чтобы гарантировать целостность данных.
-        # Если в процессе возникнет ошибка, все изменения будут отменены.
         with transaction.atomic():
             self.stdout.write("Удаление старых данных...")
-            # Очищаем модели в правильном порядке, чтобы избежать проблем с внешними ключами
-            IndividualEntrepreneur.objects.all().delete()
-            RetailNetwork.objects.all().delete()
-            Factory.objects.all().delete()
+            # Очищаем все модели
+            SupplierLink.objects.all().delete()
+            NetworkNode.objects.all().delete()
+            Product.objects.all().delete()
             self.stdout.write(self.style.SUCCESS("Старые данные успешно удалены."))
 
-            # Создаем экземпляр Faker для генерации данных
             fake = Faker('ru_RU')
+
+            # --- Создание Продуктов ---
+            self.stdout.write("Создание продуктов...")
+            products = []
+            for _ in range(20): # Создадим 20 уникальных продуктов
+                product = Product.objects.create(
+                    name=fake.word().capitalize() + " " + fake.word(),
+                    model=fake.bothify(text='??-####'),
+                    release_date=fake.date_between(start_date='-5y', end_date='today')
+                )
+                products.append(product)
+            self.stdout.write(self.style.SUCCESS(f"Создано {len(products)} продуктов."))
 
             # --- Создание Заводов (Уровень 0) ---
             self.stdout.write("Создание заводов...")
             factories = []
-            for _ in range(2):
-                factory = Factory.objects.create(name=f"Завод «{fake.company()}»")
-                
-                FactoryContacts.objects.create(
-                    factory=factory,
-                    email=fake.email(),
+            for _ in range(3):
+                factory = NetworkNode.objects.create(
+                    name=f"Завод «{fake.company()}»",
+                    node_type=NetworkNode.NodeType.FACTORY,
+                    email=fake.unique.email(),
                     country=fake.country(),
                     city=fake.city(),
                     street=fake.street_name(),
-                    house_number=fake.building_number()
+                    house_number=fake.building_number(),
                 )
-                
-                # Создаем несколько продуктов для каждого завода
-                for _ in range(random.randint(3, 7)):
-                    FactoryProducts.objects.create(
-                        factory=factory,
-                        name=fake.word().capitalize() + " " + fake.word(),
-                        model=fake.bothify(text='??-####'),
-                        release_date=fake.date_between(start_date='-5y', end_date='today')
-                    )
+                # Добавляем заводу случайные продукты
+                factory.products.set(random.sample(products, k=random.randint(5, 15)))
                 factories.append(factory)
             self.stdout.write(self.style.SUCCESS(f"Создано {len(factories)} заводов."))
 
@@ -67,32 +68,27 @@ class Command(BaseCommand):
             retail_networks = []
             if factories:
                 for _ in range(5):
-                    network = RetailNetwork.objects.create(
+                    supplier_factory = random.choice(factories)
+                    network = NetworkNode.objects.create(
                         name=f"Сеть «{fake.company()}»",
-                        supplier=random.choice(factories),
-                        debt=fake.random_int(min=1000, max=50000)
-                    )
-                    
-                    RetailNetworkContacts.objects.create(
-                        retail_network=network,
-                        email=fake.email(),
+                        node_type=NetworkNode.NodeType.RETAIL,
+                        email=fake.unique.email(),
                         country=fake.country(),
                         city=fake.city(),
                         street=fake.street_name(),
-                        house_number=fake.building_number()
+                        house_number=fake.building_number(),
                     )
-
-                    # Копируем некоторые продукты от поставщика (завода)
-                    if network.supplier:
-                        supplier_products = list(network.supplier.products.all())
-                        products_to_add = random.sample(supplier_products, k=min(len(supplier_products), random.randint(2, 5)))
-                        for product in products_to_add:
-                            RetailNetworkProducts.objects.create(
-                                retail_network=network,
-                                name=product.name,
-                                model=product.model,
-                                release_date=product.release_date
-                            )
+                    # Создаем связь с поставщиком (заводом) и указываем долг
+                    SupplierLink.objects.create(
+                        supplier=supplier_factory,
+                        client=network,
+                        debt=fake.pydecimal(left_digits=5, right_digits=2, positive=True, min_value=1000, max_value=50000)
+                    )
+                    # Копируем некоторые продукты от поставщика
+                    supplier_products = list(supplier_factory.products.all())
+                    if supplier_products:
+                        network.products.set(random.sample(supplier_products, k=min(len(supplier_products), random.randint(3, 10))))
+                    
                     retail_networks.append(network)
             self.stdout.write(self.style.SUCCESS(f"Создано {len(retail_networks)} розничных сетей."))
 
@@ -101,34 +97,29 @@ class Command(BaseCommand):
             entrepreneurs = []
             if retail_networks:
                 for _ in range(10):
-                    ip = IndividualEntrepreneur.objects.create(
+                    supplier_network = random.choice(retail_networks)
+                    ip = NetworkNode.objects.create(
                         name=f"ИП {fake.last_name()} {fake.first_name()}",
-                        supplier=random.choice(retail_networks),
-                        debt=fake.random_int(min=500, max=10000)
-                    )
-
-                    IndividualEntrepreneurContacts.objects.create(
-                        individual_entrepreneur=ip,
-                        email=fake.email(),
+                        node_type=NetworkNode.NodeType.ENTREPRENEUR,
+                        email=fake.unique.email(),
                         country=fake.country(),
                         city=fake.city(),
                         street=fake.street_name(),
-                        house_number=fake.building_number()
+                        house_number=fake.building_number(),
                     )
+                    # Создаем связь с поставщиком (розничной сетью) и указываем долг
+                    SupplierLink.objects.create(
+                        supplier=supplier_network,
+                        client=ip,
+                        debt=fake.pydecimal(left_digits=4, right_digits=2, positive=True, min_value=500, max_value=10000)
+                    )
+                    # Копируем продукты от поставщика
+                    supplier_products = list(supplier_network.products.all())
+                    if supplier_products:
+                        ip.products.set(random.sample(supplier_products, k=min(len(supplier_products), random.randint(2, 5))))
 
-                    # Копируем продукты от поставщика (розничной сети)
-                    if ip.supplier:
-                        supplier_products = list(ip.supplier.products.all())
-                        products_to_add = random.sample(supplier_products, k=min(len(supplier_products), random.randint(1, 4)))
-                        for product in products_to_add:
-                            IndividualEntrepreneurProducts.objects.create(
-                                individual_entrepreneur=ip,
-                                name=product.name,
-                                model=product.model,
-                                release_date=product.release_date
-                            )
                     entrepreneurs.append(ip)
             self.stdout.write(self.style.SUCCESS(f"Создано {len(entrepreneurs)} индивидуальных предпринимателей."))
 
-        self.stdout.write(self.style.SUCCESS("База данных успешно заполнена тестовыми данными!"))
+        self.stdout.write(self.style.SUCCESS("\nБаза данных успешно заполнена тестовыми данными!"))
 
