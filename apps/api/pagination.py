@@ -1,5 +1,6 @@
 from rest_framework.pagination import PageNumberPagination
 
+
 class CustomPagination(PageNumberPagination):
     """
     Кастомный класс пагинации для установки стандартного размера страницы

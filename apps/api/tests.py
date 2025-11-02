@@ -93,7 +93,6 @@ class NetworkNodeAPITests(APITestCase):
         self.assertFalse(NetworkNode.objects.filter(id=self.node3.id).exists())
 
     # --- Тесты фильтрации и бизнес-логики ---
-    
     def test_filter_by_country(self):
         """Тест: Фильтрация списка узлов по стране."""
         response = self.client.get(self.nodes_list_url, {'country': 'Беларусь'})
@@ -104,7 +103,11 @@ class NetworkNodeAPITests(APITestCase):
     def test_update_node_debt_is_ignored(self):
         """Тест: Попытка обновления поля debt через API игнорируется."""
         initial_debt = self.node1.debt
-        response = self.client.patch(reverse('networknode-detail', args=[self.node1.id]), {'debt': '9999.99'}, format='json')
+        response = self.client.patch(reverse(
+            'networknode-detail',
+            args=[self.node1.id]),
+            {'debt': '9999.99'}, format='json'
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.node1.refresh_from_db()
         self.assertEqual(self.node1.debt, initial_debt)

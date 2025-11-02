@@ -8,6 +8,7 @@ from .pagination import CustomPagination
 # Получаем логгер 'apps', который мы настроили для общих событий приложения
 app_logger = logging.getLogger('apps')
 
+
 class IsActiveUser(permissions.BasePermission):
     """
     Кастомное разрешение, которое проверяет, что пользователь является активным сотрудником.
@@ -50,9 +51,9 @@ class NetworkNodeViewSet(viewsets.ModelViewSet):
                 log_message += f" город='{city_filter}'"
             if search_query:
                 log_message += f" поиск='{search_query}'"
-        
+
         app_logger.info(log_message)
-        
+
         return super().list(request, *args, **kwargs)
 
 

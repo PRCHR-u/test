@@ -25,6 +25,7 @@ TEST_LOGGING = {
     },
 }
 
+
 @override_settings(LOGGING=TEST_LOGGING)
 class AuthLoggingSignalTests(TestCase):
 

@@ -4,10 +4,10 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    
+
     # API v1
     path('api/v1/', include('apps.api.urls')),
-    
+
     # API Schema
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     # Optional UI:

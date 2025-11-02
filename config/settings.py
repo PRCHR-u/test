@@ -1,6 +1,6 @@
 
 import os
-from pathlib import Path # Используем pathlib для современного управления путями
+from pathlib import Path  # Используем pathlib для современного управления путями
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -40,19 +40,19 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'django_filters',
     'drf_spectacular',
-    'corsheaders',  # для CORS
+    'corsheaders',  # Добавлено для CORS
 
     # Local apps
-    'apps.core', # Для менеджмент-команд
-    'apps.users.apps.UsersConfig', # для поддержки сигналов
+    'apps.core',  # Для менеджмент-команд
+    'apps.users.apps.UsersConfig',  # Изменено для поддержки сигналов
     'apps.network',
     'apps.api',
-    'health', # приложение для мониторинга
+    'health',  # Наше новое приложение для мониторинга
 ]
 
 MIDDLEWARE = [
-    # middleware для логирования запросов должно быть первым
-    'config.middleware.RequestLoggingMiddleware', 
+    # Наше новое middleware для логирования запросов должно быть первым
+    'config.middleware.RequestLoggingMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -61,7 +61,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'health.middleware.MetricsMiddleware', # Middleware для сбора метрик
+    'health.middleware.MetricsMiddleware',  # Middleware для сбора метрик
 ]
 
 # --- НАСТРОЙКИ CORS ---
@@ -75,7 +75,7 @@ if DEBUG and not CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "http://localhost:5173", # Стандартный порт Vite/React
+        "http://localhost:5173",  # Стандартный порт Vite/React
         "http://127.0.0.1:5173",
     ]
 
@@ -163,7 +163,6 @@ LOG_DIR.mkdir(exist_ok=True)
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    
     'formatters': {
         'verbose': {
             'format': '[{levelname}] {asctime} {module} {process:d} {thread:d} {message}',
@@ -174,10 +173,12 @@ LOGGING = {
             'style': '{',
         },
         'json': {
-            'format': '{\"timestamp\": \"%(asctime)s\", \"level\": \"%(levelname)s\", \"module\": \"%(module)s\", \"message\": \"%(message)s\"}',
+            'format': (
+                '{"timestamp": "%(asctime)s", "level": "%(levelname)s", '
+                '"module": "%(module)s", "message": "%(message)s"}'
+            )
         },
     },
-    
     'handlers': {
         'console': {
             'level': 'INFO',
@@ -225,7 +226,6 @@ LOGGING = {
             'formatter': 'json',  # JSON формат для легкого парсинга
         },
     },
-    
     'loggers': {
         'django': {
             'handlers': ['console', 'file_general', 'file_errors'],
@@ -268,7 +268,6 @@ LOGGING = {
             'propagate': False,
         },
     },
-    
     'root': {
         'handlers': ['console', 'file_general', 'file_errors'],
         'level': 'INFO',

@@ -17,15 +17,15 @@ class UserManager(BaseUserManager):
         """
         if not username:
             raise ValueError('The given username must be set')
-        
+
         email = self.normalize_email(email)
         user = self.model(username=username, email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
-        
+
         # Логируем событие
         security_logger.info(f"Пользователь '{user.username}' успешно создан.")
-        
+
         return user
 
     def create_superuser(self, username, email=None, password=None, **extra_fields):
@@ -41,10 +41,10 @@ class UserManager(BaseUserManager):
             raise ValueError('Superuser must have is_superuser=True.')
 
         user = self.create_user(username, email, password, **extra_fields)
-        
+
         # Логируем событие создания суперпользователя
         security_logger.warning(f"Суперпользователь '{user.username}' успешно создан.")
-        
+
         return user
 
 
@@ -54,6 +54,6 @@ class User(AbstractUser):
     """
     # Убираем поле email из required, т.к. мы используем username для входа
     email = models.EmailField('email address', blank=True)
-    
+
     # Подключаем наш кастомный менеджер
     objects = UserManager()

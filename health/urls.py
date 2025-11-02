@@ -1,8 +1,8 @@
 from django.urls import path
 from .views import (
-    HealthCheckView, 
-    SimpleHealthCheckView, 
-    ReadinessCheckView, 
+    HealthCheckView,
+    SimpleHealthCheckView,
+    ReadinessCheckView,
     LivenessCheckView
 )
 

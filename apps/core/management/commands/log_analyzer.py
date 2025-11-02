@@ -1,7 +1,6 @@
 from django.core.management.base import BaseCommand
-import logging
-from pathlib import Path
 from django.conf import settings
+
 
 class Command(BaseCommand):
     help = 'Анализ логов приложения'
@@ -18,7 +17,7 @@ class Command(BaseCommand):
         self._analyze_log(security_log_file, "Лог безопасности (security.log)")
         self._analyze_log(business_log_file, "Лог бизнес-логики (business.log)")
         self._analyze_log(errors_log_file, "Лог ошибок (errors.log)", level_filter='ERROR')
-        
+
     def _analyze_log(self, log_file, title, level_filter=None):
         self.stdout.write(self.style.HTTP_INFO(f"\nАнализ: {title}"))
         if not log_file.exists():
@@ -31,7 +30,7 @@ class Command(BaseCommand):
         total_lines = len(logs)
         error_count = sum(1 for log in logs if '[ERROR]' in log)
         warning_count = sum(1 for log in logs if '[WARNING]' in log)
-        
+
         if level_filter:
             logs = [log for log in logs if f'[{level_filter}]' in log]
 

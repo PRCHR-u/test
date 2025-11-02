@@ -6,6 +6,7 @@ import random
 
 from apps.network.models import NetworkNode, Product, SupplierLink
 
+
 class Command(BaseCommand):
     """
     Django-команда для заполнения базы данных тестовыми данными.
@@ -13,7 +14,7 @@ class Command(BaseCommand):
     Генерирует иерархическую структуру поставщиков с использованием единой модели NetworkNode:
     - 3 Завода (уровень 0)
     - 5 Розничных сетей (уровень 1), случайным образом связанных с заводами.
-    - 10 Индивидуальных предпринимателей (уровень 2), случайным образом связанных 
+    - 10 Индивидуальных предпринимателей (уровень 2), случайным образом связанных
       с розничными сетями.
 
     Каждый узел сети получает случайные контакты и набор продуктов.
@@ -36,7 +37,7 @@ class Command(BaseCommand):
             # --- Создание Продуктов ---
             self.stdout.write("Создание продуктов...")
             products = []
-            for _ in range(20): # Создадим 20 уникальных продуктов
+            for _ in range(20):
                 product = Product.objects.create(
                     name=fake.word().capitalize() + " " + fake.word(),
                     model=fake.bothify(text='??-####'),
@@ -82,13 +83,22 @@ class Command(BaseCommand):
                     SupplierLink.objects.create(
                         supplier=supplier_factory,
                         client=network,
-                        debt=fake.pydecimal(left_digits=5, right_digits=2, positive=True, min_value=1000, max_value=50000)
+                        debt=fake.pydecimal(
+                            left_digits=5,
+                            right_digits=2,
+                            positive=True,
+                            min_value=1000,
+                            max_value=50000
+                        )
                     )
                     # Копируем некоторые продукты от поставщика
                     supplier_products = list(supplier_factory.products.all())
                     if supplier_products:
-                        network.products.set(random.sample(supplier_products, k=min(len(supplier_products), random.randint(3, 10))))
-                    
+                        network.products.set(random.sample(
+                            supplier_products,
+                            k=min(len(supplier_products), random.randint(3, 10))
+                        ))
+
                     retail_networks.append(network)
             self.stdout.write(self.style.SUCCESS(f"Создано {len(retail_networks)} розничных сетей."))
 
@@ -111,15 +121,21 @@ class Command(BaseCommand):
                     SupplierLink.objects.create(
                         supplier=supplier_network,
                         client=ip,
-                        debt=fake.pydecimal(left_digits=4, right_digits=2, positive=True, min_value=500, max_value=10000)
+                        debt=fake.pydecimal(
+                            left_digits=4,
+                            right_digits=2,
+                            positive=True,
+                            min_value=500,
+                            max_value=10000
+                        )
                     )
                     # Копируем продукты от поставщика
                     supplier_products = list(supplier_network.products.all())
                     if supplier_products:
-                        ip.products.set(random.sample(supplier_products, k=min(len(supplier_products), random.randint(2, 5))))
+                        ip.products.set(
+                            random.sample(supplier_products, k=min(len(supplier_products), random.randint(2, 5))))
 
                     entrepreneurs.append(ip)
             self.stdout.write(self.style.SUCCESS(f"Создано {len(entrepreneurs)} индивидуальных предпринимателей."))
 
         self.stdout.write(self.style.SUCCESS("\nБаза данных успешно заполнена тестовыми данными!"))
-

@@ -38,7 +38,7 @@ class NetworkNodeSerializer(serializers.ModelSerializer):
     suppliers_links = SupplierLinkSerializer(source='client_links', many=True, read_only=True)
     products = ProductSerializer(many=True, read_only=True)
     level = serializers.SerializerMethodField()
-    
+
     # Поле только для записи. Позволяет указать ID поставщика при создании/обновлении.
     supplier_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
 
@@ -78,13 +78,15 @@ class NetworkNodeSerializer(serializers.ModelSerializer):
                         f"сделать узел '{instance.name}' (ID: {instance.id}) зависимым от своего дочернего узла "
                         f"(ID: {supplier_id}). Операция отклонена."
                     )
-                    raise serializers.ValidationError({'supplier_id': "Невозможно установить циклическую зависимость."}) 
-                
-                # Поднимаемся вверх по иерархии
-                # В нашей модели может быть несколько поставщиков, берем первого
+                    raise serializers.ValidationError(
+                        {'supplier_id': "Невозможно установить циклическую зависимость."}
+                    )
+
+                # вверх по иерархии
+                # В модели может быть несколько поставщиков, берем первого
                 link = current.client_links.first()
                 current = link.supplier if link else None
-        
+
         return data
 
     @transaction.atomic
@@ -111,6 +113,6 @@ class NetworkNodeSerializer(serializers.ModelSerializer):
             instance.client_links.all().delete()
             # Создаем новую связь
             SupplierLink.objects.create(supplier_id=supplier_id, client=instance)
-        
+
         business_logger.info(f"Через API обновлен узел сети: '{instance.name}' (ID: {instance.id}).")
         return instance

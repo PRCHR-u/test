@@ -32,8 +32,8 @@ class SupplierLinkAdmin(admin.ModelAdmin):
     @admin.action(description='Очистить задолженность у выбранных связей')
     def clear_debt(self, request: HttpRequest, queryset: QuerySet[SupplierLink]):
         """Действие для обнуления задолженности с логированием."""
-        
-        # --- Логирование действия --- 
+
+        # --- Логирование действия ---
         admin_user = request.user.username
         # Итерируемся по queryset ПЕРЕД обновлением, чтобы залогировать старые значения
         for link in queryset:
