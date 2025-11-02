@@ -1,6 +1,8 @@
 services:
   db:
     image: postgres:13-alpine
+    env_file:
+      - .env
     # Переменные окружения для БД будут загружены из .env файлов
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -12,7 +14,11 @@ services:
   web:
     build: .
     # Команда запуска остается прежней, entrypoint.sh будет выполняться всегда
-    command: /app/entrypoint.sh
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
     # Переменные окружения для Django также будут из .env файлов
     environment:
       PGDATABASE: ${POSTGRES_DB}
