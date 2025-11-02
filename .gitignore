@@ -2,6 +2,15 @@
 __pycache__/
 *.py[codz]
 *$py.class
+shell.nix
+dev.nix
+.postgres
+db_data
+.replit
+replit.nix
+.idx/
+entrypoint.sh
+staticfiles/
 
 # C extensions
 *.so

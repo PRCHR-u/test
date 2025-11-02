@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_DB: electronics_network
+      POSTGRES_USER: network_user
+      POSTGRES_PASSWORD: network_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    build: .
+    command: /app/entrypoint.sh
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      PGDATABASE: electronics_network
+      PGUSER: network_user
+      PGPASSWORD: network_password
+      PGHOST: db
+      PGPORT: 5432
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
