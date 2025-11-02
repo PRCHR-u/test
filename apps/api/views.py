@@ -1,6 +1,8 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, filters
+from django_filters.rest_framework import DjangoFilterBackend
 from apps.network.models import NetworkNode, Product
 from .serializers import NetworkNodeSerializer, ProductSerializer
+from .pagination import CustomPagination  # Импортируем наш класс пагинации
 
 
 class IsActiveUser(permissions.BasePermission):
@@ -20,7 +22,12 @@ class NetworkNodeViewSet(viewsets.ModelViewSet):
     queryset = NetworkNode.objects.all()
     serializer_class = NetworkNodeSerializer
     permission_classes = [IsActiveUser]
-    filterset_fields = ['country'] # Добавляем возможность фильтрации по стране
+    pagination_class = CustomPagination
+    
+    # бэкенды фильтрации
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['country', 'city']
+    search_fields = ['name']
 
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -32,4 +39,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [IsActiveUser]
+    pagination_class = CustomPagination  # Подключаем пагинацию
 
+    # Добавляем поиск по названию
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name']

@@ -9,8 +9,9 @@ db_data
 .replit
 replit.nix
 .idx/
-entrypoint.sh
 staticfiles/
+.env.dev
+.env.prod
 
 # C extensions
 *.so

@@ -1,75 +1,98 @@
+
 from django.contrib import admin
-from django.db.models import QuerySet
-from django.http import HttpRequest
 from django.urls import reverse
-from django.utils.html import format_html_join
-from django.utils.safestring import mark_safe
+from django.utils.html import format_html
 
-from .models import NetworkNode, Product, SupplierLink
+from .models import (
+    Factory, FactoryContacts, FactoryProducts,
+    RetailNetwork, RetailNetworkContacts, RetailNetworkProducts,
+    IndividualEntrepreneur, IndividualEntrepreneurContacts, IndividualEntrepreneurProducts
+)
 
-
-@admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
-    """
-    Admin configuration for the Product model.
-    """
-    list_display = ('name', 'model', 'release_date')
-    search_fields = ('name', 'model')
-
-
-class SupplierLinkInline(admin.TabularInline):
-    """
-    Inline for managing supplier-client links in the NetworkNode admin.
-    Allows viewing and editing supplier relationships directly.
-    """
-    model = SupplierLink
-    fk_name = 'client'  # The foreign key from SupplierLink to NetworkNode (the client)
+# Используем inline-модели для удобного редактирования связанных данных
+class FactoryContactsInline(admin.StackedInline):
+    model = FactoryContacts
     extra = 1
-    raw_id_fields = ('supplier',)
-    verbose_name = "Поставщик"
-    verbose_name_plural = "Поставщики"
+
+class FactoryProductsInline(admin.TabularInline):
+    model = FactoryProducts
+    extra = 1
+
+class RetailNetworkContactsInline(admin.StackedInline):
+    model = RetailNetworkContacts
+    extra = 1
+
+class RetailNetworkProductsInline(admin.TabularInline):
+    model = RetailNetworkProducts
+    extra = 1
+
+class IndividualEntrepreneurContactsInline(admin.StackedInline):
+    model = IndividualEntrepreneurContacts
+    extra = 1
+
+class IndividualEntrepreneurProductsInline(admin.TabularInline):
+    model = IndividualEntrepreneurProducts
+    extra = 1
 
 
-@admin.register(NetworkNode)
-class NetworkNodeAdmin(admin.ModelAdmin):
-    """
-    Admin configuration for the NetworkNode model.
-    """
-    list_display = ('name', 'display_supplier', 'node_type', 'level', 'city', 'country', 'created_at')
-    list_filter = ('city', 'country', 'node_type')
-    search_fields = ('name', 'email', 'city', 'country')
-    inlines = [SupplierLinkInline]
-    actions = ['clear_all_debt']
-    readonly_fields = ('level', 'created_at')
+@admin.register(Factory)
+class FactoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'created_at')
+    search_fields = ('name', 'contacts__city')
+    inlines = [FactoryContactsInline, FactoryProductsInline]
 
-    def level(self, obj: NetworkNode) -> int:
-        """Вычисляет и отображает уровень иерархии узла."""
-        return obj.get_level()
-    
-    level.short_description = 'Уровень иерархии'
 
-    def display_supplier(self, obj: NetworkNode) -> str:
-        """Отображает поставщиков узла в виде ссылок."""
-        suppliers = [link.supplier for link in SupplierLink.objects.filter(client=obj)]
-        if not suppliers:
-            return "—"
-        
-        return format_html_join(
-            mark_safe(', '),
-            '<a href="{}">{}</a>',
-            ((reverse('admin:network_networknode_change', args=[s.pk]), s.name) for s in suppliers)
-        )
+@admin.register(RetailNetwork)
+class RetailNetworkAdmin(admin.ModelAdmin):
+    list_display = ('name', 'get_supplier_link', 'debt', 'created_at')
+    list_display_links = ('name',)
+    search_fields = ('name', 'contacts__city')
+    list_filter = ('contacts__city',)
+    readonly_fields = ('debt',)
+    inlines = [RetailNetworkContactsInline, RetailNetworkProductsInline]
+    actions = ['clear_debt']
 
-    display_supplier.short_description = 'Поставщик'
+    def get_supplier_link(self, obj):
+        if obj.supplier:
+            link = reverse("admin:network_factory_change", args=[obj.supplier.id])
+            return format_html(f'<a href="{link}">{obj.supplier.name}</a>')
+        return "N/A"
+    get_supplier_link.short_description = 'Поставщик'
 
-    @admin.action(description='Очистить всю задолженность для выбранных узлов')
-    def clear_all_debt(self, request: HttpRequest, queryset: QuerySet[NetworkNode]):
-        """
-        Admin action to clear all debts for the selected network nodes.
-        This sets the debt to 0 for all supplier links related to the selected nodes.
-        """
-        # The .update() method returns the number of rows affected.
-        updated_count = SupplierLink.objects.filter(client__in=queryset).update(debt=0)
-        
-        message = f"Задолженность очищена. Количество обновленных записей: {updated_count}."
-        self.message_user(request, message)
+    @admin.action(description='Очистить задолженность у выбранных объектов')
+    def clear_debt(self, request, queryset):
+        queryset.update(debt=0)
+        self.message_user(request, f"Задолженность была успешно очищена для {queryset.count()} объектов.")
+
+
+@admin.register(IndividualEntrepreneur)
+class IndividualEntrepreneurAdmin(admin.ModelAdmin):
+    list_display = ('name', 'get_supplier_link', 'debt', 'created_at')
+    list_display_links = ('name',)
+    search_fields = ('name', 'contacts__city')
+    list_filter = ('contacts__city',)
+    readonly_fields = ('debt',)
+    inlines = [IndividualEntrepreneurContactsInline, IndividualEntrepreneurProductsInline]
+    actions = ['clear_debt']
+
+    def get_supplier_link(self, obj):
+        if obj.supplier:
+            link = reverse("admin:network_retailnetwork_change", args=[obj.supplier.id])
+            return format_html(f'<a href="{link}">{obj.supplier.name}</a>')
+        return "N/A"
+    get_supplier_link.short_description = 'Поставщик'
+
+    @admin.action(description='Очистить задолженность у выбранных объектов')
+    def clear_debt(self, request, queryset):
+        queryset.update(debt=0)
+        self.message_user(request, f"Задолженность была успешно очищена для {queryset.count()} объектов.")
+
+# Можно также зарегистрировать модели контактов и продуктов отдельно,
+# но они уже доступны для редактирования внутри основных моделей.
+# admin.site.register(FactoryContacts)
+# admin.site.register(FactoryProducts)
+# admin.site.register(RetailNetworkContacts)
+# admin.site.register(RetailNetworkProducts)
+# admin.site.register(IndividualEntrepreneurContacts)
+# admin.site.register(IndividualEntrepreneurProducts)
+

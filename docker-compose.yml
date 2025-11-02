@@ -1,28 +1,28 @@
 services:
   db:
     image: postgres:13-alpine
+    # Переменные окружения для БД будут загружены из .env файлов
     environment:
-      POSTGRES_DB: electronics_network
-      POSTGRES_USER: network_user
-      POSTGRES_PASSWORD: network_password
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
   web:
     build: .
+    # Команда запуска остается прежней, entrypoint.sh будет выполняться всегда
     command: /app/entrypoint.sh
-    volumes:
-      - .:/app
-    ports:
-      - "8000:8000"
+    # Переменные окружения для Django также будут из .env файлов
     environment:
-      PGDATABASE: electronics_network
-      PGUSER: network_user
-      PGPASSWORD: network_password
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
       PGHOST: db
       PGPORT: 5432
+      # Ключ и режим DEBUG теперь управляются централизованно
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: ${DEBUG}
     depends_on:
       - db
 

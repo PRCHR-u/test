@@ -1,0 +1,7 @@
+
+asgiref==3.7.2
+Django==3.2
+djangorestframework==3.13.1
+dotenv-cli==0.0.3
+psycopg2-binary==2.9.9
+drf-spectacular==0.27.2

@@ -1,7 +1,16 @@
 from django.contrib import admin
 from django.urls import path, include
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('apps.api.urls')),
+
+    # DRF Spectacular - OpenAPI/Swagger
+    # Схема генерируется здесь
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+
+    # Короткие и удобные пути для UI
+    path('swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
