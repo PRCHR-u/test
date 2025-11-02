@@ -40,25 +40,28 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'django_filters',
     'drf_spectacular',
-    'corsheaders',  # Добавлено для CORS
+    'corsheaders',  # для CORS
 
     # Local apps
-    'apps.users.apps.UsersConfig', # Изменено для поддержки сигналов
+    'apps.core', # Для менеджмент-команд
+    'apps.users.apps.UsersConfig', # для поддержки сигналов
     'apps.network',
     'apps.api',
+    'health', # приложение для мониторинга
 ]
 
 MIDDLEWARE = [
-    # Наше новое middleware для логирования запросов должно быть первым
+    # middleware для логирования запросов должно быть первым
     'config.middleware.RequestLoggingMiddleware', 
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'health.middleware.MetricsMiddleware', # Middleware для сбора метрик
 ]
 
 # --- НАСТРОЙКИ CORS ---
@@ -170,6 +173,9 @@ LOGGING = {
             'format': '[{levelname}] {asctime} {message}',
             'style': '{',
         },
+        'json': {
+            'format': '{\"timestamp\": \"%(asctime)s\", \"level\": \"%(levelname)s\", \"module\": \"%(module)s\", \"message\": \"%(message)s\"}',
+        },
     },
     
     'handlers': {
@@ -210,6 +216,14 @@ LOGGING = {
             'backupCount': 5,
             'formatter': 'verbose',
         },
+        'file_metrics': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOG_DIR / 'metrics.log',
+            'maxBytes': 1024 * 1024 * 10,  # 10 MB
+            'backupCount': 5,
+            'formatter': 'json',  # JSON формат для легкого парсинга
+        },
     },
     
     'loggers': {
@@ -241,6 +255,16 @@ LOGGING = {
         'apps': {
             'handlers': ['console', 'file_general'],
             'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': False,
+        },
+        'health': {
+            'handlers': ['console', 'file_general'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'metrics': {
+            'handlers': ['console', 'file_metrics'],
+            'level': 'INFO',
             'propagate': False,
         },
     },
